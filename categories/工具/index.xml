@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>工具 on 被门夹过的核桃还补脑吗</title><link>https://xjj.pub/categories/%E5%B7%A5%E5%85%B7/</link><description>Recent content in 工具 on 被门夹过的核桃还补脑吗</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>© XJJ</copyright><lastBuildDate>Mon, 23 Aug 2021 20:50:50 +0800</lastBuildDate><atom:link href="https://xjj.pub/categories/%E5%B7%A5%E5%85%B7/index.xml" rel="self" type="application/rss+xml"/><item><title>几个在线汇编模拟器</title><link>https://xjj.pub/asm-simulator/</link><pubDate>Mon, 23 Aug 2021 20:50:50 +0800</pubDate><guid>https://xjj.pub/asm-simulator/</guid><description>今天来水一篇文章，这几天在看计组，且在试着用 C 语言模拟一个 16 位的计算机和其汇编器，选用的指令集架构是 CASL。为了搞清楚机器是怎么在内存中维护和访问变量，在网上搜了几个有图形界面的在线汇编模拟器。
+8 位 https://schweigi.github.io/assembler-simulator 16 位 https://parraman.github.io/asm-simulator/ Intel 8086 https://yjdoc2.github.io/8086-emulator-web/compile 这里简单介绍一下 8 位的模拟器，如下图所示
+顶部有三个操作按钮，Run 用来运行左边的汇编代码，Step 用来一行行断点运行，Reset 用来重置模拟器状态，包括清空内存和寄存器的内容。
+在汇编代码下方的 Assemble 按钮用来初始化机器状态，包括加载程序和数据到内存以及建立符号表。符号表如图中右下角所示，记录了符号名、在内存中的地址和值。
+而右边就是对寄存器、内存和输出的图形显示，首先是寄存器，该模拟器实现了 A, B, C, D 4 个通用寄存器、一个 IP 程序计数寄存器、一个保存栈顶位置的 SP 寄存器和 3 个 1 位的状态寄存器。然后是内存，如图 RAM 部分所示，内存用了 16×16 个格子表示，每个格子存储 1 字节数据，所以该模拟器只有 256B 的内存空间。
+SP 寄存器的值被机器默认设置为 0xe8（RAM 中橙色部分），表示将地址 0xe8 作为栈底，往低位入栈。最后该模拟器将 RAM 中 0xe9 到 0xff 的地址映射到输出，所以最多同时可显示 24 个字符。
+另外可以在 RAM 下方的 Clock Speed 处调节时钟频率。</description></item></channel></rss>
