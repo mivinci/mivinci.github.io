@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Teches on 被门夹过的核桃还补脑吗</title><link>https://xjj.pub/tech/</link><description>Recent content in Teches on 被门夹过的核桃还补脑吗</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><copyright>© XJJ</copyright><lastBuildDate>Sun, 29 Aug 2021 13:48:59 +0800</lastBuildDate><atom:link href="https://xjj.pub/tech/index.xml" rel="self" type="application/rss+xml"/><item><title>零宽度短网址</title><link>https://xjj.pub/tech/zero-width-url-shortener/</link><pubDate>Sun, 29 Aug 2021 13:48:59 +0800</pubDate><guid>https://xjj.pub/tech/zero-width-url-shortener/</guid><description>首先解释一下什么是短网址生成器。你收到过的短信里应该有长成这样的网址：https://t.cn/a6v27，这就是一种短网址，或者叫短链。点击该网址，会发现跳转到了一个拥有很长地址的网站。这种通过短网址跳转到原网站的技术主要有两个好处：
+一是对短信发送方，可以减小短信内容，降低流量消耗，我们知道网络运营商是按流量使用大小计费的。二是对用户来说，短网址较原本的长网址更美观，同时也使得短信内容更加紧凑，便于用户阅读。
+短网址的核心原理很简单，一句话概括就是：短网址服务器将对某个短网址的访问请求重定向到其对应的原网址。所以需要服务端维护短网址到原网址的映射，也需要向原网址所有者提供注册映射的接口（一般为网页）。
+当然，需要注意的是，选用的短网址生成算法要保证极小的碰撞率，同时要避免被批量刷出。不过这不在这篇文章讨论的范围。
+进入正题，所谓零宽度短网址就是指没有唯一代表该网址的部分，如上面例子中的 a6v27 部分。以 zws.im 为例，该平台生成的短网址全都长这样：
+https://zws.im 没错，就是它本身的样子。那他怎么识别不同原网址？原理其实很简单，该平台也对其原理做了说明。我们知道 unicode 字符集包含了地球上几乎所有的符号文字。而在很多国家的语言中，‎都有连字1 的现象，比如波斯语中的「我想要」可写为下面两种形式2
+第一种就是连字形式。为避免字体文件将字符渲染成连字形式，unicode 字符集中出现了不占宽度的字符，如上图中的第二种写法中的红线部分。该字符的 unicode 码为 200b，在 utf8 编码中占 3 个字节，其 HTML 代码为 &amp;amp;zwnj。使用了该零宽度字符后，字体文件就不会将可以连字的字母进行连字处理。
+但是，这种零宽度字符是肯定会占空间的，你可以打开浏览器的控制台运行下面代码试试看
+1 &amp;#39;\u200b&amp;#39;.length // 1 我们知道 JavaScript 对象的 length 属性返回的是字符串中字符编码单元的数量3，故这行代码会返回 1，表示有一个字符。所以使用这种字符来生成短网址的方法，并不能体现上述节省流量的好处。更直观一点，我们拿一条该平台生成的短链接来试试
+1 &amp;#39;https://zws.im/󠁧‌󠁱󠁫󠁶󠁦󠁴&amp;#39;.length // 28 可以看到，现在返回了 28，而不是本身 15 的长度，说明在地址后面还有 13 个零宽度的字符。不过我觉得这种零宽度短链接是种很酷的东西，所以我又收集了几组零宽度字符，它们的 unicode 码分别是
+200b ~ 200f 2028 ~ 202e 2060 ~ 206f feff, 180e 打算用这些字符的不同数量的排列组合对应到正整数上，由此自己实现一个零宽度短网址生成器（挖坑+1）。
+https://zh.</description></item><item><title>一个用于展示个人项目的网页生成器</title><link>https://xjj.pub/tech/x26/</link><pubDate>Fri, 27 Aug 2021 14:21:29 +0800</pubDate><guid>https://xjj.pub/tech/x26/</guid><description>去年考研复习时就想做个个人项目聚合网页，用来统一展示项目，包括项目名、项目简介、项目标签、仓库地址和在线预览地址等等。结果鸽了快大半年了，不过现在终于做好了，取名叫 x26，效果如下图所示，或直接在线浏览 👀
+个人觉得挺好看 😆 每个方块表示一个项目（第一张图），点击方块可以弹出项目详情（第二张图）方块的数量、大小、位置和里面显示的内容都是可以自定义的（具体使用方法见下）除了展示项目，还可以把 x26 当个人首页使用，甚至可以用来显示简历，若你愿意，hehe。
+使用 只需要 6 步，就能拥有一个 x26 小站。
+第 1 步 - 安装 在使用之前，确保你已经安装好 Node 和 Git 环境。首先克隆这个仓库，然后进入其根目录
+1 2 git clone git@github.com:mivinci/x26.git cd x26 x26 使用 pnpm 管理 node 模块，所以需要先安装 pnpm，以 npm 为例
+1 npm i -g pnpm 然后安装 x26 依赖
+1 pnpm i 第 2 步 - 预览 成功安装依赖后，运行下面命令，然后打开浏览器输入 localhost:3000 预览当前的网页效果
+1 pnpm dev 第 3 步 - 配置 这一步是 x26 的核心步骤。x26 通过识别配置来决定渲染的内容和样式，支持本地和远程两种配置方式。</description></item><item><title>几个在线汇编模拟器</title><link>https://xjj.pub/tech/asm-simulator/</link><pubDate>Mon, 23 Aug 2021 20:50:50 +0800</pubDate><guid>https://xjj.pub/tech/asm-simulator/</guid><description>今天来水一篇文章，这几天在看计组，且在试着用 C 语言模拟一个 16 位的计算机和其汇编器，选用的指令集架构是 CASL。为了搞清楚机器是怎么在内存中维护和访问变量，在网上搜了几个有图形界面的在线汇编模拟器。
+8 位 https://schweigi.github.io/assembler-simulator 16 位 https://parraman.github.io/asm-simulator/ Intel 8086 https://yjdoc2.github.io/8086-emulator-web/compile 这里简单介绍一下 8 位的模拟器，如下图所示
+顶部有三个操作按钮，Run 用来运行左边的汇编代码，Step 用来一行行断点运行，Reset 用来重置模拟器状态，包括清空内存和寄存器的内容。
+在汇编代码下方的 Assemble 按钮用来初始化机器状态，包括加载程序和数据到内存以及建立符号表。符号表如图中右下角所示，记录了符号名、在内存中的地址和值。
+而右边就是对寄存器、内存和输出的图形显示，首先是寄存器，该模拟器实现了 A, B, C, D 4 个通用寄存器、一个 IP 程序计数寄存器、一个保存栈顶位置的 SP 寄存器和 3 个 1 位的状态寄存器。然后是内存，如图 RAM 部分所示，内存用了 16×16 个格子表示，每个格子存储 1 字节数据，所以该模拟器只有 256B 的内存空间。
+SP 寄存器的值被机器默认设置为 0xe8（RAM 中橙色部分），表示将地址 0xe8 作为栈底，往低位入栈。最后该模拟器将 RAM 中 0xe9 到 0xff 的地址映射到输出，所以最多同时可显示 24 个字符。
+另外可以在 RAM 下方的 Clock Speed 处调节时钟频率。</description></item><item><title>OAuth2.0 中的 state 参数</title><link>https://xjj.pub/tech/state_param_in_oauth2/</link><pubDate>Thu, 05 Aug 2021 13:53:48 +0800</pubDate><guid>https://xjj.pub/tech/state_param_in_oauth2/</guid><description>OAuth2.0 协议用于用户授权第三方应用，使之能访问受保护的用户资源。RFC67491 中规定了 OAuth2.0 的 4 种授权方式，分别是：
+授权码式（authorization code） 隐含式（implicit） 密码式（resource owner password credentials） 客户端模式（client credentials） 且整个协议过程由 4 个部分组成，分别是：
+客户端（client） 资源拥有者（resource owner） 授权服务器（authorization server） 资源服务器（resource server） 前两种授权方式需要客户端在访问授权服务器的 authorize 接口时带上一个 state 参数，用来防御跨站请求伪造（CSRF）攻击。
+以授权码方式为例，该方式要求客户端提供一个回调地址（redirection uri）用来接受来自授权服务器带有授权码（code）的重定向请求。即该回调地址是对外开放的，客户端为了确定该重定向的确来自授权服务器，而不是其他由攻击者伪造的请求，就在获取授权码阶段，将一个 state 字段通过 url 查询参数（querystring）告诉给授权服务器，授权服务器在重定向时原封不动的也通过 url 查询参数返回该 state 给客户端，然后客户端通过校验 state 是否正确来判断该重定向请求是否来自刚刚请求的授权服务器，从而达到对 CSRF 的防御。
+所以，state 参数的生成和校验需要由客户端妥善处理，且参数值要让攻击者难以在有限时间内试出。在完成一次授权过程后，需要立即销毁该 state 参数，保证每次使用不同的参数值。
+https://www.rfc-editor.org/rfc/rfc6749.html&amp;#160;&amp;#x21a9;&amp;#xfe0e;</description></item><item><title>实现了个 brainfuck 解释器</title><link>https://xjj.pub/tech/brainfuck_interpretor/</link><pubDate>Fri, 02 Jul 2021 14:38:08 +0800</pubDate><guid>https://xjj.pub/tech/brainfuck_interpretor/</guid><description>安装 首先 clone 仓库 或直接 点击这 下载源码，然后使用下面命令编译安装。
+1 2 make make install 原理 Brainfuck 运行在一组内存单元格上，每个格子的初始值为零，并只使用一个指针来操作这些单元格，具体语法如下表所示。
+指令 作用 &amp;gt; 将指针右移一格 &amp;lt; 将指针左移一格 + 将指针当前所指单元格的值加1 - 将指针当前所指单元格的值减1 . 打印指针当前所指单元格的值对应的ACSCII字符 , 从键盘获取一个字符存入指针当前所指单元格 [ 若指针当前所指单元格的值为0，则跳转到与之对应的]处继续执行 ] 若指针当前所指单元格的值不为0，则跳回与之对应的[处继续执行 可以看出，brainfuck 只有一个指针、输入输出和循环功能，但它是 图灵完备 的，可以实现和图灵机等同的功能。esolangs.org 上还收集了许多基于 brainfuck 的另类编程语言。
+Hello world 老规矩，认识一门语言从打印 Hello World!</description></item></channel></rss>
