@@ -1,0 +1,210 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta property="og:title" content="我可能实现了个高性能 HTTP 路由器"><meta property="og:description" content="这篇文章介绍一下我用 Go 语言实现的一个 HTTP 路由器（HTTP router）的原理以及优化方式，[代码仓库在这](https://github.cm/mivinci/web)。压测结果和目前同样基于 Go 标准库实现的最快的 [httprouter](https://github.com/julienschmidt/httprouter) 不相上下，且在匹配动态路由的时候比它少一次内存分配。两者使用的是相同的压测代码和测试环境。"><meta property="og:type" content="article"><meta property="og:url" content="https://xjj.pub/tech/web/"><meta property="article:section" content="tech"><meta property="article:published_time" content="2021-11-22T22:37:55+08:00"><meta property="article:modified_time" content="2021-11-22T22:37:55+08:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="我可能实现了个高性能 HTTP 路由器"><meta name=twitter:description content="这篇文章介绍一下我用 Go 语言实现的一个 HTTP 路由器（HTTP router）的原理以及优化方式，[代码仓库在这](https://github.cm/mivinci/web)。压测结果和目前同样基于 Go 标准库实现的最快的 [httprouter](https://github.com/julienschmidt/httprouter) 不相上下，且在匹配动态路由的时候比它少一次内存分配。两者使用的是相同的压测代码和测试环境。"><meta name=theme-color media="(prefers-color-scheme: light)" content="#ffffff"><meta name=theme-color media="(prefers-color-scheme: dark)" content="#262d33"><title>被门夹过的核桃还补脑吗 - 我可能实现了个高性能 HTTP 路由器</title><link rel="shortcut icon" href=/favicon.ico type=image/x-icon><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel=stylesheet><link rel=stylesheet href=/minima.1637630648.css><script defer type=text/javascript src=/minima.1637630648.js></script></head><script>try{'theme'in localStorage||(localStorage.theme=window.matchMedia('(prefer-color-scheme: dark)').matches?'dark':'light'),document.querySelector('html').classList.add(localStorage.theme)}catch(a){console.error(a)}</script><body class="sm:mx-5 sm:my-0"><header class="flex justify-between items-center sm:my-3"><div class="flex items-center"><div id=theme-switcher class="text-4xl cursor-pointer">🌝</div></div><nav class="flex items-center
+whitespace-nowrap overflow-x-auto overflow-y-hidden"><a class=ml-5 href=/tech>技术</a>
+<a class=ml-5 href=/idea>想法</a>
+<a class=ml-5 href=https://26.xjj.pub>项目</a>
+<a class=ml-5 href=/about>关于</a></nav></header><details class="toc mt-8"><summary>Table of Contents</summary><div><nav id=TableOfContents><ul><li><a href=#背景>背景</a></li><li><a href=#路由查找>路由查找</a><ul><li><a href=#静态路由>静态路由</a></li><li><a href=#动态路由>动态路由</a></li><li><a href=#通配路由>通配路由</a></li></ul></li><li><a href=#路由构造>路由构造</a></li><li><a href=#压测>压测</a></li></ul></nav></div></details><h1 class="mt-8 mb-6">我可能实现了个高性能 HTTP 路由器</h1><div class="mb-3 text-xs flex justify-between sm:flex-col"><div>Posted at &mdash; Nov 22, 2021</div></div><main><p>这篇文章介绍一下我用 Go 语言实现的一个 HTTP 路由器（HTTP router）的原理以及优化方式，<a href=https://github.cm/mivinci/web>代码仓库在这</a>。压测结果和目前同样基于 Go 标准库实现的最快的 <a href=https://github.com/julienschmidt/httprouter>httprouter</a> 不相上下，且在匹配动态路由的时候比它少一次内存分配。两者使用的是相同的压测代码和测试环境。</p><article class=md><h2 id=背景>背景</h2><p>Go 语言标准库提供了完整的 HTTP 协议解析器，并将请求的处理抽象成了 <code>http.Handler</code> 接口，该接口就是传统意义上的 controller。只要对象实现了该接口的 <code>ServeHTTP</code> 方法，就能传入 <code>http.Server</code>，接收并处理 HTTP 请求。如下</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-go data-lang=go><span class=kd>type</span> <span class=nx>handler</span> <span class=kd>struct</span> <span class=p>{}</span>
+
+<span class=kd>func</span> <span class=p>(</span><span class=nx>h</span> <span class=nx>handler</span><span class=p>)</span> <span class=nf>ServeHTTP</span><span class=p>(</span><span class=nx>w</span> <span class=nx>http</span><span class=p>.</span><span class=nx>ResponseWriter</span><span class=p>,</span> <span class=nx>r</span> <span class=o>*</span><span class=nx>http</span><span class=err>。</span><span class=nx>Request</span><span class=p>)</span> <span class=p>{</span>
+    <span class=c1>// 处理请求
+</span><span class=c1></span><span class=p>}</span>
+
+<span class=kd>func</span> <span class=nf>main</span><span class=p>()</span> <span class=p>{</span>
+    <span class=nx>http</span><span class=p>.</span><span class=nf>ListenAndServe</span><span class=p>(</span><span class=s>&#34;:8000&#34;</span><span class=p>,</span> <span class=nb>new</span><span class=p>(</span><span class=nx>handler</span><span class=p>))</span>
+<span class=p>}</span>
+</code></pre></td></tr></table></div></div><p>这样，handler 就能收到并处理任何发到 8000 端口的 HTTP 请求。但我们大多数时候需要使用不同的 handler 来处理不同方法、不同路径来的请求，如下面 2 个常见的请求需要 2 个 handler 来分别处理（为方便显示，省略了协议和域名部分）。</p><pre><code>GET /user/profile
+GET /book/introduction
+</code></pre><p>一种最简单的实现方式是在上面 handler 的 ServeHTTP 方法里使用条件判断，如 <code>switch</code>，匹配请求的方法和路径，再在 <code>case</code> 里调用对应的函数来处理。这种方式实现起来十分简单而且处理得很快，但对于有很多路由的服务端程序，需要写很长的条件判断语句。基于 HTTP 的微服务框架 <a href=https://github.com/twitchtv/twirp>twirp</a> 就是使用的这种方式来处理不同路径的请求，因为微服务一般是不需要很多路由的。</p><p>另一种优雅点的方式是将路由信息存储在一个哈希表里（下称 map），路径作为键，处理请求的函数或方法作为值，这样便实现了时间复杂度为 O(1) 的路由查找。Go 语言标准库提供的便是这种方法，实现在 <code>http.ServeMux</code> 结构体中（Mux 就是指的 multiplexer，意思是「多路复用器」，和 Linux IO 复用有类似的含义。后来很多 Go 语言实现的 HTTP 路由器库或框架都沿用了这个词）</p><p>但这种方式不利于实现「动态路由」。以 GitHub 为例</p><pre><code>GET /bob/web
+GET /alice/wob
+GET /jack/wab
+</code></pre><p>这 3 个请求希望访问到 Bob, Alice, Jack 三个人不同的仓库，若使用上面所说的基于哈希表的方式，那作为键的路由是什么呢？</p><p>所以我们希望只通过定义一个下面这种路由来获取这种情况的请求</p><pre><code>/:name/:repo
+</code></pre><p>并在请求的处理函数中通过 name 和 repo 两个字段获取到请求中的真实参数值，如请求 <code>/bob/web</code> 时的结果就是</p><pre><code>{
+  &quot;name&quot;: &quot;bob&quot;,
+  &quot;repo&quot;: &quot;web&quot;
+}
+</code></pre><p>这种动态匹配路径的路由就叫做动态路由（至少我是这么叫了），这些参数被称作 named parameter，即有名字的参数。而像 <code>/user/profile</code> 这种就把它叫做静态路由吧。</p><p>基于哈希表的路由还有一个问题，就是浪费内存，考虑下面这种路由有公共前缀的情况</p><pre><code>/foo/bar
+/fee/baz
+/har/:pee/:poo
+/har/pee
+/har/paa
+</code></pre><p>这些公共前缀在基于哈希表的路由中是实打实地重复存在，且 Go 提供的 <code>ServeMux</code> 的性能并不高，主要问题出现在路由查找过程中的内存分配上。</p><p>目前用 Go 语言实现第三方最快的 HTTP 路由器 <a href=https://github.com/julienschmidt/httprouter>httprouter</a> 的解决办法是使用一种叫做 compressed trie (或叫 <a href=https://en.wikipedia.org/wiki/Radix_tree>radix tree</a>) 的数据结构来存储路由，即「压缩前缀树」。这种数据结构能够使得这些公共前缀共享一片内存，如下图所示</p><p class=mermaid>flowchart TD
+/-->f
+/-->har
+f-->oo
+f-->ee
+oo-->bar
+ee-->baz
+har-->:pee
+:pee-->:poo
+har-->pee
+har-->poo</p><p>这样，这颗 n 叉树就存储了上面列举的 5 条路由，其中，根结点到每个叶子结点的路径就分别对应了每条路由，所以把对应路由的处理函数或方法保存在它对应的叶子结点即可。像 Go 最出名的 web 框架 <a href=https://github.com/labstack/echo>echo</a> 和 <a href=https://github.com/go-gin/gin>gin</a> 都是基于的 <a href=https://github.com/julienschmidt/httprouter>httprouter</a>（但其实我点也不喜欢 gin）</p><p>当接收到请求的路径为 <code>/foo/bar</code> 时，就会从根结点开始进行深度优先遍历，直到匹配到一个叶子结点，然后用存在该叶子结点的函数或方法处理该请求。</p><p>且这种基于压缩前缀树的方法也能更方便的处理动态请求，如收到请求的路径为 <code>/har/apple/banana</code> 时就会依次选择到结点 <code>har</code> <code>:pee</code> <code>:poo</code> ，在到达这些结点时就可以顺便解析出这两个参数。具体怎么讲这些参数交给接下来处理请求的函数或方法，不同框架有不同的做法，如 httprouter 提供两种方法，一种是将这些参数放到 <code>httprouter.Params</code> 中作为参数传给自己定义的 Handler 接口，另一种是通过 Go 的 <code>Context</code> 来传递这些参数给 <code>http.Handler</code>，前者与 <code>http.Handler</code> 不兼容。</p><p>但是，这种方式并不好实现，httprouter 整整花了 680 行来实现压缩前缀树，且为了提高在树中的查询效率，httprouter 不得不使用了 <code>goto</code> 关键字（我猜的，因为这样能利于 Go 编译器编译出路由查询部分的高效率汇编指令）</p><p>所以，我试着设计了一种简单的、针对路由格式特点的方式来实现压缩前缀树，并且在同样的测试条件下，获得了和 httprouter 这个目前基于 Go 标准库中最快的 HTTP 路由器不相上下的结果，在一些特定的条件下甚至有略快的表现。</p><h2 id=路由查找>路由查找</h2><p>还是那 5 条路由，在我简化后的压缩前缀树（下简称树）中的样子如下图所示，其中 ∅ 表示结点中没有任何前缀（后面会解释为什么使用 <code>∅</code> 而不是像 httprouter 那样使用 <code>/</code> 作为根结点）</p><p class=mermaid>flowchart TD
+w1["∅"]-->foo-->bar
+w1-->fee-->baz
+har-->paa
+har-->pee
+w1-->har-->:pee-->:poo</p><p>即先根据 <code>/</code> 来切分路由，然后用切分出的部分组成树路径上的节点，同样的，每条从根结点到叶子结点的路径对应了一条路由，每个叶子结点保存了其对应的路由的请求处理函数或方法。这样，当收到请求后，就先对请求的路径做同样的切分处理，然后逐个在树中对应的层上比较，分三种路由的情况。</p><h3 id=静态路由>静态路由</h3><p>静态路由的查找算法如下面伪代码所示</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-js data-lang=js><span class=kd>function</span> <span class=nx>search</span><span class=p>(</span><span class=nx>结点</span><span class=p>,</span> <span class=nx>请求路径</span><span class=p>)</span>
+  <span class=nx>chunks</span> <span class=o>=</span> <span class=nx>split</span><span class=p>(</span><span class=nx>请求路径</span><span class=p>,</span> <span class=s2>&#34;/&#34;</span><span class=p>)</span>
+  <span class=k>for</span> <span class=nx>chunk</span> <span class=k>in</span> <span class=nx>chunks</span><span class=o>:</span>
+    <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>false</span>
+    <span class=k>for</span> <span class=nx>子结点</span> <span class=k>in</span> <span class=nx>结点</span><span class=o>:</span>
+      <span class=k>if</span> <span class=nx>子结点</span> <span class=nx>不与</span> <span class=nx>chunk</span> <span class=nx>匹配</span>
+        <span class=k>continue</span>
+      <span class=nx>结点</span> <span class=o>=</span> <span class=nx>子结点</span>
+      <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>true</span>
+      <span class=k>break</span>
+    <span class=k>if</span> <span class=nx>not</span> <span class=nx>找到结点</span><span class=o>:</span>
+      <span class=k>return</span> <span class=nx>NULL</span>
+  <span class=k>return</span> <span class=nx>结点</span>
+</code></pre></td></tr></table></div></div><p>其基本思想就是遍历 chunks，每轮依次比较对应那层的子结点，若匹配到一个，则进行下一层子结点的比较，否则直接返回空结点，不用再比较剩下的结点了。</p><p>以路径为 <code>/fee/baz</code> 的请求为例，调用 search</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-js data-lang=js><span class=nx>目标结点</span> <span class=o>=</span> <span class=nx>search</span><span class=p>(</span><span class=nx>根结点</span><span class=p>,</span> <span class=s2>&#34;/fee/baz&#34;</span><span class=p>)</span>
+</code></pre></td></tr></table></div></div><p>该路径首先会被分割，得到 chunks 为 <code>["", "fee", "baz"]</code>，然后会用 chunks 的第一个元素，即空字符串匹配到根结点，然后第二个元素 “fee” 匹配到第一层的 fee 结点，最后用 第三个元素 “baz” 匹配到第二层的 baz 结点便完成了查找。这样便用对数时间复杂度找到了处理该请求的叶子结点，然后调用该结点里的函数或方法处理该请求即可。</p><h3 id=动态路由>动态路由</h3><p>考虑这样一个情况，若我们的路由表里包含下面两条路由，即有一条静态路由和一条动态路由发生冲突。</p><pre><code>/:bee/:gee
+/foo/bar
+</code></pre><p>按照目前我们的理解是发给路由 <code>/foo/bar</code> 的请求永远会被 <code>/:bee/:gee</code> 拦截到。所以 httprouter 的解决的方式是直接不允许这种情况的发生，当你尝试定义这种路由时，会收到 httprouter 的报错提示。</p><p>但更合理的逻辑是，只有路径为 <code>/foo/bar </code>的请求才会被静态路由 <code>/foo/bar</code> 处理，其他的像 <code>/fee/bar</code>, <code>/bee/gee</code> 等就会被动态路由 <code>/:bee/:gee</code> 处理，且解析出对应的参数。</p><p>所以我们需要为子结点排序！因为在上述静态路由的查找算法中，某个节点的子结点是依次被比较的，只要先比较的是静态路由的结点就可以避免这个问题。若先静态结点没有匹配到，才会接着匹配动态结点。</p><p>具体的做法是为每个结点设置一个权重，若静态结点为 1，动态结点为 2，则每插入一个结点就将该层的结点按权重由小到大排序，这样就能保证静态路由比动态路由先进行匹配。</p><h3 id=通配路由>通配路由</h3><p>除了上述的两种路由外，还有一种十分常见的路由情况，思考这下面三条路由的含义</p><pre><code>/foo/
+/foo/:bar
+/foo/bar
+</code></pre><p>一个合理的解释为，除了路径为 <code>/foo/bar</code> 的请求被静态路由 <code>/foo/bar</code> 处理和路径的格式为 <code>/*/*</code> 的请求被动态路由处理外，其他的请求都由路由 <code>/foo/</code> 处理，即 <code>/foo/</code> 表示 foo 下的所有路由，所以叫「通配」路由。这三条路由的 chunks 分别为</p><pre><code>[&quot;&quot;, &quot;foo&quot;, &quot;&quot;]
+[&quot;&quot;, &quot;foo&quot;, &quot;:bar&quot;]
+[&quot;&quot;, &quot;foo&quot;, &quot;bar&quot;]
+</code></pre><p>表示成树就是</p><p class=mermaid>flowchart TD
+foo-->bar
+foo-->:pee
+w1["∅"]-->foo-->w2["∅"]</p><p>所以只需要在前面的基础上为空字符串结点设置权重为 3，即三种路由的权重关系为</p><pre><code>静态结点 &lt; 动态结点 &lt; 通配结点
+</code></pre><p>这样就能在前两种路由都没匹配到的时候，使用通配路由来 &ldquo;兜个底&rdquo;</p><p>到这里，你应该能明白为什么使用空字符串 <code>""</code> 来表示根结点了吧，而不是像其他路由器那样直接使用 <code>/</code>。正是因为只有一个根结点的路由，即 <code>"/"</code>，其实只是通配路由的一个特殊情况，若你还是没懂，就考虑这么一个情况</p><pre><code>/
+</code></pre><p>即只有一个根通配路由，这条路由的 chunks 为</p><pre><code>[&quot;&quot;, &quot;&quot;]
+</code></pre><p>其对应的树为</p><p class=mermaid>flowchart
+w1["∅"]-->w2["∅"]</p><p>当朝根路径 <code>/</code> 发起请求时，根据上面的查找算法，该请求路径也会被分割成 <code>["", ""]</code> 来进行匹配，刚好能满足此树。</p><h4 id=特例一>特例一</h4><p>哈哈，到这还没完呢。在上面通配路由例子的基础上，考虑这么一个特殊情况</p><pre><code>/
+/foo/
+/foo/bar
+</code></pre><p>其对应的树为</p><p class=mermaid>flowchart
+w1["∅1"]-->foo-->bar
+w1-->w2["∅2"]
+foo-->w3["∅3"]</p><p>若收到请求路径为 <code>/foo/bar/pee</code> ，按照我们所描述的查找算法来看，会依次经过结点 <code>∅1</code>, <code>foo</code>, <code>bar</code>，然后会因为匹配不到 pee 而返回一个空结点，因为请求路径的 chunks 的长度超过了树的深度，可是按照我们的期望，该请求应该被通配路由 <code>/foo/</code> 拿到，即匹配到使用距离最后一次比较的结点最近的通配结点 <code>∅3</code> 。</p><p>为处理该特殊情况，我们可以让每个结点单独维护一下指向它通配子结点的指针，若他没有通配子结点，则该指针为空，然后在查询过程中记录一下沿路遇到的非空通配结点。这样就可以在没有匹配到结点的时候，返回当前记录的通配结点，即为最近的一个通配结点。所以现在只需要在前面的查找算法上加上几行即可</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-js data-lang=js><span class=kd>function</span> <span class=nx>search</span><span class=p>(</span><span class=nx>结点</span><span class=p>,</span> <span class=nx>请求路径</span><span class=p>)</span>
+  <span class=nx>最近的通配结点</span> <span class=o>=</span> <span class=nx>NULL</span>
+  <span class=nx>chunks</span> <span class=o>=</span> <span class=nx>split</span><span class=p>(</span><span class=nx>请求路径</span><span class=p>,</span> <span class=s2>&#34;/&#34;</span><span class=p>)</span>
+  <span class=k>for</span> <span class=nx>chunk</span> <span class=k>in</span> <span class=nx>chunks</span><span class=o>:</span>
+    <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>false</span>
+    <span class=k>if</span> <span class=nx>结点</span><span class=p>.</span><span class=nx>通配结点</span> <span class=o>!=</span> <span class=nx>NULL</span><span class=o>:</span>
+      <span class=nx>最近的通配结点</span> <span class=o>=</span> <span class=nx>结点</span><span class=p>.</span><span class=nx>通配结点</span>
+    <span class=k>for</span> <span class=nx>子结点</span> <span class=k>in</span> <span class=nx>结点</span><span class=o>:</span>
+      <span class=k>if</span> <span class=nx>子结点</span> <span class=nx>不与</span> <span class=nx>chunk</span> <span class=nx>匹配</span>
+        <span class=k>continue</span>
+      <span class=nx>结点</span> <span class=o>=</span> <span class=nx>子结点</span>
+      <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>true</span>
+      <span class=k>break</span>
+    <span class=k>if</span> <span class=nx>not</span> <span class=nx>找到结点</span><span class=o>:</span>
+      <span class=k>return</span> <span class=nx>最近的通配结点</span>
+  <span class=k>return</span> <span class=nx>结点</span>
+</code></pre></td></tr></table></div></div><h4 id=特例二>特例二</h4><p>在目前的基础上，考虑下面两种情况的路由树</p><p class=mermaid>flowchart
+w1["∅1"]-->foo-->bar
+w1-->w2["∅2"]
+w3["∅1"]-->:foo-->baz
+w3-->w4["∅2"]</p><p>当收到路径为 <code>/foo</code> 的请求时，根据我们对通配结点的定义，无论是哪棵树，该请求应该都被结点 <code>∅2</code> 处理，但目前的查找算法最终会返回结点 foo 或 :foo，因为静态结点和动态结点的权重都比通配结点的小，所以会先匹配结点 foo 或 :foo，而此时外层对 chunks 的遍历已经完成，不会再继续匹配下一层了，所以返回的结点是 foo 或 :foo，而非叶子结点是无法处理请求的。</p><p>解决这个问题的方法也很简单，只需要在返回查询的结果前判断一下是不是叶子结点即可，若是，直接返回结果即可，否则返回最近的通配结点。由于只有叶子结点上才有处理请求的函数或方法，所以可以根据查询到的结点里的请求处理函数或方法是否为空就能判断是否为叶子结点了。</p><p>整理一下最终的查找算法</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-js data-lang=js><span class=kd>function</span> <span class=nx>search</span><span class=p>(</span><span class=nx>结点</span><span class=p>,</span> <span class=nx>请求路径</span><span class=p>)</span>
+  <span class=nx>最近的通配结点</span> <span class=o>=</span> <span class=nx>空</span>
+  <span class=nx>chunks</span> <span class=o>=</span> <span class=nx>split</span><span class=p>(</span><span class=nx>请求路径</span><span class=p>,</span> <span class=s2>&#34;/&#34;</span><span class=p>)</span>
+  <span class=k>for</span> <span class=nx>chunk</span> <span class=k>in</span> <span class=nx>chunks</span><span class=o>:</span>
+    <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>false</span>
+    <span class=k>if</span> <span class=nx>结点</span><span class=p>.</span><span class=nx>通配结点</span> <span class=nx>不为空</span><span class=o>:</span>
+      <span class=nx>最近的通配结点</span> <span class=o>=</span> <span class=nx>结点</span><span class=p>.</span><span class=nx>通配结点</span>
+    <span class=k>for</span> <span class=nx>子结点</span> <span class=k>in</span> <span class=nx>结点</span><span class=o>:</span>
+      <span class=k>if</span> <span class=nx>子结点</span> <span class=nx>不与</span> <span class=nx>chunk</span> <span class=nx>匹配</span>
+        <span class=k>continue</span>
+      <span class=nx>结点</span> <span class=o>=</span> <span class=nx>子结点</span>
+      <span class=nx>找到结点</span> <span class=o>=</span> <span class=kc>true</span>
+      <span class=k>break</span>
+    <span class=k>if</span> <span class=nx>not</span> <span class=nx>找到结点</span><span class=o>:</span>
+      <span class=k>return</span> <span class=nx>最近的通配结点</span>
+  <span class=k>if</span> <span class=nx>结点</span><span class=p>.</span><span class=nx>handler</span> <span class=nx>为空</span><span class=o>:</span>
+     <span class=nx>结点</span> <span class=o>=</span> <span class=nx>最近的通配结点</span>
+  <span class=k>return</span> <span class=nx>结点</span>
+</code></pre></td></tr></table></div></div><h2 id=路由构造>路由构造</h2><p>通过调用 insert 方法来往树中插入新路由，实现 insert 方法的伪代码直接贴出来，大家可以自己思考一下（其实是因为我写到这儿已经很累了 233）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre class=chroma><code class=language-js data-lang=js><span class=kd>function</span> <span class=nx>insert</span><span class=p>(</span><span class=nx>node</span><span class=p>,</span> <span class=nx>chunks</span><span class=p>,</span> <span class=nx>height</span><span class=p>,</span> <span class=nx>handler</span><span class=p>)</span><span class=o>:</span>
+  <span class=k>if</span> <span class=nx>chunks</span> <span class=nx>的长度</span> <span class=o>==</span> <span class=nx>height</span><span class=o>:</span>
+    <span class=nx>node</span><span class=p>.</span><span class=nx>handler</span> <span class=o>=</span> <span class=nx>handler</span>
+    <span class=k>return</span>
+  <span class=k>if</span> <span class=nx>node</span> <span class=nx>的子结点为空</span><span class=o>:</span>
+  	<span class=nx>初始化</span> <span class=nx>node</span> <span class=nx>的子结点</span>
+  <span class=nx>chunk</span> <span class=o>=</span> <span class=nx>chunks</span><span class=p>[</span><span class=nx>height</span><span class=p>]</span>
+  <span class=nx>child</span> <span class=o>=</span> <span class=nx>找到</span> <span class=nx>node</span> <span class=nx>中能和</span> <span class=nx>chunk</span> <span class=nx>匹配的子结点</span>
+  
+  <span class=k>if</span> <span class=nx>child</span> <span class=nx>为空</span><span class=o>:</span>
+    <span class=nx>child</span> <span class=o>=</span> <span class=nx>新键对应</span> <span class=nx>chunk</span> <span class=nx>的结点</span>
+    <span class=nx>将</span> <span class=nx>child</span> <span class=nx>添加到</span> <span class=nx>node</span> <span class=nx>的子结点中</span>
+    <span class=nx>按权重由小到大</span> <span class=nx>对</span> <span class=nx>node</span> <span class=nx>的子结点排序</span>
+    
+    <span class=k>if</span> <span class=nx>child</span> <span class=nx>是通配结点</span><span class=o>:</span>
+      <span class=nx>node</span><span class=p>.</span><span class=nx>wild</span> <span class=o>=</span> <span class=nx>child</span>
+  <span class=nx>insert</span><span class=p>(</span><span class=nx>child</span><span class=p>,</span> <span class=nx>chunks</span><span class=p>,</span> <span class=nx>height</span><span class=o>+</span><span class=mi>1</span><span class=p>,</span> <span class=nx>handler</span><span class=p>)</span>
+</code></pre></td></tr></table></div></div><p>可见，这是一个递归算法，其中 height 表示当前所处的层数。其实最开始前面的路由查询算法也是实现的递归形式，但我觉得迭代应该比递归性能好一些。这儿说句外话，在我的理解中，递归和迭代的本质区别是，递归在碰到挡板（终止条件）时，会原路返回，因为递归本身是利用了函数调用栈的先进后出特性，而迭代并不一定会。</p><h2 id=压测>压测</h2><p>写到这儿，真的想睡觉了，后面再把压测结果补上吧，包括如何使用内存池优化路由查询过程。或者可以自己去 <a href=(https://github.cm/mivinci/web)>仓库</a> 把代码拉下来运行压测脚本，运行方法在 <a href=https://github.com/Mivinci/web/blob/main/README.md>README.md</a> 中。</p></article></main><script src=https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js></script><script>mermaid.initialize({startOnLoad:!0})</script><footer class="mt-8 flex sm:flex-col-reverse justify-between items-center"><p class="mt-0 text-sm">© XJJ 2021 |
+<a href=https://gohugo.io target=_blank rel="noopener noreferrer">Hugo</a> on
+<a href=https://github.com/mivinci/hugo-theme-minima target=_blank rel="noopener noreferrer">Minima</a></p><p class="flex items-center mt-0"><a class="icon mx-2" href=https://github.com/mivinci title=github><svg fill="#63636f" width="18" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>GitHub</title><path d="M12 .297c-6.63.0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577.0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93.0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176.0.0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22.0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22.0 1.606-.015 2.896-.015 3.286.0.315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><a class="icon mx-2" href=https://linkedin/in/leonard-mivinci-63895317a title=linkedin><svg fill="#0073b1" width="18" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>LinkedIn</title><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853.0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601.0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144.0-2.063-.926-2.063-2.065.0-1.138.92-2.063 2.063-2.063 1.14.0 2.064.925 2.064 2.063.0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225.0H1.771C.792.0.0.774.0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2.0 22.222.0h.003z"/></svg></a><a class="icon mx-2" href=https://twitter.com/Leonard14733745 title=twitter><svg fill="#1da1f2" width="18" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Twitter</title><path d="M23.954 4.569c-.885.389-1.83.654-2.825.775 1.014-.611 1.794-1.574 2.163-2.723-.951.555-2.005.959-3.127 1.184-.896-.959-2.173-1.559-3.591-1.559-2.717.0-4.92 2.203-4.92 4.917.0.39.045.765.127 1.124C7.691 8.094 4.066 6.13 1.64 3.161c-.427.722-.666 1.561-.666 2.475.0 1.71.87 3.213 2.188 4.096-.807-.026-1.566-.248-2.228-.616v.061c0 2.385 1.693 4.374 3.946 4.827-.413.111-.849.171-1.296.171-.314.0-.615-.03-.916-.086.631 1.953 2.445 3.377 4.604 3.417-1.68 1.319-3.809 2.105-6.102 2.105-.39.0-.779-.023-1.17-.067 2.189 1.394 4.768 2.209 7.557 2.209 9.054.0 13.999-7.496 13.999-13.986.0-.209.0-.42-.015-.63.961-.689 1.8-1.56 2.46-2.548l-.047-.02z"/></svg></a><a class="icon mx-2" href=/index.xml title=rss><svg fill="#63636f" t="1626591563876" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" p-id="1984" width="18" height="16"><path d="M128 768a128 128 0 100 256 128 128 0 000-256zM0 368v176c265.104.0 480 214.912 480 480h176c0-362.32-293.696-656-656-656zM0 0v176c468.336.0 848 379.664 848 848h176C1024 458.464 565.536.0.0.0z" p-id="1985"/></svg></a></p></footer></body></html>
