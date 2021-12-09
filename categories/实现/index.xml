@@ -5,7 +5,7 @@
 1 2 git clone git@github.com:mivinci/x26.git cd x26 x26 使用 pnpm 管理 node 模块，所以需要先安装 pnpm，以 npm 为例
 1 npm i -g pnpm 然后安装 x26 依赖
 1 pnpm i 第 2 步 - 预览 成功安装依赖后，运行下面命令，然后打开浏览器输入 localhost:3000 预览当前的网页效果
-1 pnpm dev 第 3 步 - 配置 这一步是 x26 的核心步骤。x26 通过识别配置来决定渲染的内容和样式，支持本地和远程两种配置方式。</description></item><item><title>实现了个 brainfuck 解释器</title><link>https://xjj.pub/tech/brainfuck_interpretor/</link><pubDate>Fri, 02 Jul 2021 14:38:08 +0800</pubDate><guid>https://xjj.pub/tech/brainfuck_interpretor/</guid><description>安装 首先 clone 仓库 或直接 点击这 下载源码，然后使用下面命令编译安装。
+1 pnpm dev 第 3 步 - 配置 这一步是 x26 的核心步骤。x26 通过识别配置来决定渲染的内容和样式，支持本地和远程两种配置方式。</description></item><item><title>实现了个 brainfuck 解释器</title><link>https://xjj.pub/tech/brainfuck/</link><pubDate>Fri, 02 Jul 2021 14:38:08 +0800</pubDate><guid>https://xjj.pub/tech/brainfuck/</guid><description>安装 首先 clone 仓库 或直接 点击这 下载源码，然后使用下面命令编译安装。
 1 2 make make install 原理 Brainfuck 运行在一组内存单元格上，每个格子的初始值为零，并只使用一个指针来操作这些单元格，具体语法如下表所示。
 指令 作用 &amp;gt; 将指针右移一格 &amp;lt; 将指针左移一格 + 将指针当前所指单元格的值加1 - 将指针当前所指单元格的值减1 . 打印指针当前所指单元格的值对应的ACSCII字符 , 从键盘获取一个字符存入指针当前所指单元格 [ 若指针当前所指单元格的值为0，则跳转到与之对应的]处继续执行 ] 若指针当前所指单元格的值不为0，则跳回与之对应的[处继续执行 可以看出，brainfuck 只有一个指针、输入输出和循环功能，但它是 图灵完备 的，可以实现和图灵机等同的功能。esolangs.org 上还收集了许多基于 brainfuck 的另类编程语言。
 Hello world 老规矩，认识一门语言从打印 Hello World!</description></item></channel></rss>
