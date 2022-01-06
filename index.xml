@@ -135,4 +135,17 @@ $$ P(B)=\frac{B类样本个数}{样本总个数} $$
 $$ P(A_1 A_2 &amp;hellip; A_n|B)=\prod_{i=1}^{n}{P(A_i|B)} \tag{3} $$
 其中 $P(A_i|B)$ 是容易从数据集中直接得到的，分为离散和连续两种情况：
 当 $A_i$ 为离散型随机变量时 $$ P(A_i|B)=\frac{B类中有特征A_i的数据个数}{B类数据个数} $$
-当 $A_i$ 为连续型随机变量时 假设 $A_i|B$ 符合期望为 $\mu_{ki}$，方差为 $\sigma^2_{ki}$ 的正态分布，则有：</description></item></channel></rss>
+当 $A_i$ 为连续型随机变量时 假设 $A_i|B$ 符合期望为 $\mu_{ki}$，方差为 $\sigma^2_{ki}$ 的正态分布，则有：</description></item><item><title>卷纸理论</title><link>https://xjj.pub/idea/roll/</link><pubDate>Sun, 13 Jan 2019 13:28:34 +0800</pubDate><guid>https://xjj.pub/idea/roll/</guid><description>假装分析
+不妨将卷纸考虑成刚性卷纸，即纸张是不发生径向形变的理想纸张，且每层完全贴合。则卷纸缠绕方式如图：
+其中，$r_0$ 为纸筒的半径，$\epsilon$ 为每张纸的厚度。从第一象限开卷并终止于第四象限。过起点做纸筒的切线，将切点与纸筒中心相连得直线 $L_1$，$L_1$ 与 $x$ 轴夹角为 $\theta$ 再过起点做 $L_1$ 的平行线 $L_2$。于是第四象限被直线 $L_1$ 和 $L_2$ 分成三个区域 $A_1$, $A_2$, $A_3$。
+因为纸是不发生径向形变的理想纸，所以 $A_1$, $A_3$ 区域里每层纸构成同心圆弧，区域 $A_2$ 的纸不发生弯曲且长度为 $d$。显然，每一圈纸卷了 $2\pi$ 弧度和 $d$ 长度后与下一圈连接。于是有：
+$$ \theta=arccos\frac{r_0}{r_0+\epsilon} \tag{1} $$
+$$ d=r_0tan\theta \tag{2} $$
+考虑 $r_0&amp;raquo;\epsilon$，即纸筒半径远大于纸张厚度的情况下有
+$$ \theta\approx arccos\frac{r_0}{r_0}=0 $$
+进而有 $d\approx0$，即可以忽略掉区域 $A_2$。所以每圈纸实际上可以看成是同心圆，进而可以很简单地求出卷纸的总长，即同心圆地周长之和。再通过总长对时间的导数就能得出卷纸半径的变化率了。
+卷纸总长
+考虑到纸的厚度，第 $k$ 圈的平均半径为：
+$$ \bar{r}_k = r_0+(k-\frac{1}{2})\epsilon\tag{3} $$
+所以卷纸总长为：
+$$ \begin{aligned} L&amp;amp;=\sum_{k=1}^{n}{2\pi\bar{r}_k} \cr &amp;amp;=2\pi \Big( nr_0+\epsilon\sum_{k=1}^{n}{\frac{2k-1}{2}}\Big) \cr &amp;amp;=2\pi\Big(nr_0+\frac{n^2}{2}\Big) \end{aligned} $$</description></item></channel></rss>
