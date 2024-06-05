@@ -1,29 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#2d2d2d">
-  <title>Leo X</title>
-  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-  <link rel="stylesheet" href="index.css">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fff">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#444">
+  <title>Leo X.</title>
 </head>
+<style>
+  @font-face {
+    font-family: 'pixeled';
+    src: url('./pixeled.ttf');
+  }
+
+  body {
+    --fore: #444;
+    --back: #fff;
+    --prime: hsl(210, 90%, 55%);
+    font-family: 'pixeled';
+    font-size: calc(10px + 0.33vw);
+    padding: 5vh 10vw;
+    color: var(--fore);
+    background-color: var(--back);
+  }
+
+  .dark body {
+    --fore: silver;
+    --back: #444;
+    --prime: hsl(210, 90%, 50%);
+  }
+
+  h1 {
+    font-size: 4.5em;
+    font-weight: 500;
+    margin-bottom: 0;
+  }
+
+  p {
+    font-size: 1.2em;
+    font-weight: 400;
+    line-height: 2;
+    max-width: 32em;
+  }
+
+  a {
+    text-decoration: none;
+    color: var(--prime);
+  }
+</style>
 <script>
-  const system_theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  try {
-    if (!('theme' in localStorage)) {
-      localStorage.theme = system_theme;
-    }
-    document.querySelector('html').classList.add(localStorage.theme);
-  } catch (e) {
-    console.error(e);
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.querySelector('html').classList.add('dark');
   }
 </script>
+
 <body class="center">
-  <h1 id="toggler" class="pointer">Leo X</h1>
-  <p>Live long and prosper 🖖</p>
+  <h1>Leo X.</h1>
+  <p>Hi there, I'm Leo, a software developer from China. I enjoy working on
+     operating systems, compilers and writing stuffs in C89. 
+     You can find me at <a href="http://github.com/mivinci">GitHub</a>.</p>
+  <p>Besides programming, I enjoy theoretical physics and music. Minecraft is my
+     favorite video game. </p>
+  <p>Live long and prosper <span style="font-size: 1.5em; line-height: 1;">🖖</span>.</p>
 </body>
 <script src="index.js"></script>
+
 </html>
