@@ -15,13 +15,19 @@
     src: url('./pixeled.ttf');
   }
 
-  body {
+  html {
     --fore: #444;
     --back: #fff;
-    --prime: hsl(210, 90%, 55%);
-    font-family: 'pixeled';
-    font-size: calc(10px + 0.33vw);
-    padding: 5vh 10vw;
+    --prime: #0071e3;
+    --w-avatar: 128px;
+    font-family: monospace, system-ui, -apple-system;
+    font-size: 16px;
+  }
+
+  body {
+    max-width: 48rem;
+    padding: 5vh 1rem;
+    margin: 0 auto;
     color: var(--fore);
     background-color: var(--back);
   }
@@ -29,25 +35,51 @@
   .dark body {
     --fore: silver;
     --back: #444;
-    --prime: hsl(210, 90%, 50%);
+    --prime: #1b87f3;
+  }
+
+  header {
+    display: grid;
+    grid-template-columns: auto;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  img {
+    width: var(--w-avatar);
+    border-radius: 2rem;
+    margin: 0 auto;
   }
 
   h1 {
-    font-size: 3em;
-    font-weight: 500;
-    line-height: 1.8;
-    margin-bottom: 1em;
-  }
-
-  p {
-    font-size: 1.2em;
-    line-height: 2;
-    max-width: 32em;
+    margin: 0;
   }
 
   a {
-    text-decoration: none;
     color: var(--prime);
+  }
+
+  p,
+  ul {
+    line-height: 1.35;
+  }
+
+  .contact {
+    display: flex;
+    justify-content: space-evenly;
+    gap: 2rem;
+    color: var(--fore) !important;
+  }
+
+  @media (min-width: 640px) {
+    header {
+      grid-template-columns: var(--w-avatar) auto;
+      gap: 2rem;
+      text-align: left;
+    }
+    .contact {
+      justify-content: left;
+    }
   }
 </style>
 <script>
@@ -56,15 +88,62 @@
   }
 </script>
 
-<body class="center">
-  <h1>Leo X.</h1>
-  <p>Hi there, I'm Leo, a software developer from China. I enjoy working on
-     operating systems, compilers and writing stuffs in C89. 
-     You can find me at <a href="http://github.com/mivinci">GitHub</a>.</p>
-  <p>Besides programming, I enjoy theoretical physics and music. Minecraft is my
-     favorite video game. </p>
-  <p>Live long and prosper <span style="font-size: 1.5em; line-height: 1;">🖖</span>.</p>
+<body>
+  <header>
+    <img src="https://avatars.githubusercontent.com/u/33592375?v=4" alt="avatar" />
+    <div>
+      <h1>Leo X.</h1>
+      <p>👋 I am a software developer from China. I enjoy working on
+        operating systems, compilers and writing stuffs in C89. Besides
+        programming, I enjoy theoretical physics and music. Minecraft is
+        my favorite video game. Live long and prosper 🖖.</p>
+      <p class="contact">
+        <a href="mailto:mivinci@qq.com">E-Mail</a>
+        <a href="//github.com/mivinci">GitHub</a>
+        <a href="//x.com/realmivnci">Twitter</a>
+        <a href="//space.bilibili.com/223861386">Bilibili</a>
+      </p>
+    </div>
+  </header>
+  <div>
+    <h2>Projects</h2>
+    <ul>
+      <li>
+        <a href="//github.com/mivinci/libgg">libgg</a>
+        - Asynchronize your C/C艹 code by just linking 🚀
+      </li>
+      <li>
+        <a href="//github.com/mivinci/rho">rho</a>
+        - Rho (ρ) programming language ⚙️
+        - <strong>Work in progress</strong>
+      </li>
+      <li>
+        <a href="//github.com/mivinci/pacman">pacman</a>
+        - An emoji Pac-Man game in your terminal emulator 😋
+      </li>
+      <li>
+        <a href="//github.com/mivinci/cqupt">cqupt</a>
+        - CQUPT 校园网登录脚本 📶
+      </li>
+      <li>
+        <a href="//github.com/mivinci/hugo-theme-minima">hugo-theme-minima</a>
+        - A clean and minimal Hugo theme
+      </li>
+      <li>
+        <a href="//github.com/mivinci/bitmd">bitmd</a>
+        - A pluggable markdown editor/viewer built with marked 📃
+      </li>
+      <li>
+        <a href="//github.com/ovojs/ovo">ovo</a>
+        - A web component built for comments
+        - <strong>Archived</strong>
+      </li>
+    </ul>
+  </div>
+  <div>
+    <h2>Blogs</h2>
+    <p>None.</p>
+  </div>
 </body>
-<script src="index.js"></script>
 
 </html>
