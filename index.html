@@ -16,15 +16,10 @@
   <title>Leo X.</title>
 </head>
 <style>
-  @font-face {
-    font-family: 'pixeled';
-    src: url('./pixeled.ttf');
-  }
-
   html {
     --fore: #444;
     --back: #fff;
-    --prime: #0071e3;
+    --prime: #f95a87;
     --w-avatar: 128px;
     font-family: monospace, system-ui, -apple-system;
     font-size: 16px;
@@ -41,13 +36,19 @@
   .dark body {
     --fore: silver;
     --back: #444;
-    --prime: #1b87f3;
+    --prime: #ef5480;
   }
 
-  header {
+  #app {
     display: grid;
     grid-template-columns: auto;
     gap: 1rem;
+    transform: translateX(0);
+  }
+
+  h2,
+  aside,
+  header {
     text-align: center;
   }
 
@@ -66,6 +67,7 @@
   }
 
   p,
+  ol,
   ul {
     line-height: 1.35;
   }
@@ -82,9 +84,15 @@
   }
 
   @media (min-width: 640px) {
-    header {
+    #app {
       grid-template-columns: var(--w-avatar) auto;
       gap: 2rem;
+      transform: translateX(calc(var(--w-avatar) / -2));
+    }
+
+    h2,
+    aside,
+    header {
       text-align: left;
     }
 
@@ -105,51 +113,57 @@
 </script>
 
 <body>
-  <header>
-    <img src="https://avatars.githubusercontent.com/u/33592375?v=4" alt="avatar" />
-    <div>
-      <h1>Leo X.</h1>
-      <p>👋 I'm a software developer currently working at Tencent, full-stack.
-        I like diving in operating systems, compilers and all kinds of programming runtimes. 
-        C89 is my favorite programming language though. Besides
-        programming, I enjoy theoretical physics and music. Minecraft is
-        my favorite video game. Live long and prosper 🖖. PS: I've got
-        fucking high aesthetics and serious mysophobia on designing
-        and coding.</p>
-      <p class="contact">
-        <a href="mailto:mivinci@qq.com">E-mail</a>
-        <a href="//github.com/mivinci">GitHub</a>
-        <a href="//x.com/realmivnci">X</a>
-        <a href="//space.bilibili.com/223861386">B 站</a>
-        <a rel="me" href="https://mas.uniiem.com/@x">Mastodon</a>
-      </p>
-    </div>
-  </header>
-  <div>
-    <h2>Projects</h2>
-    <ul>
-      <li>
-        <a href="//github.com/ovojs/ovo">ovo</a>
-        - A JavaScript Runtime built on QuickJS 🦉
-        - <strong>WIP</strong>
-      </li>
-      <li>
-        <a href="//github.com/mivinci/pacman">pacman</a>
-        - An emoji Pac-Man game in your terminal emulator 😋
-      </li>
-      <li>
-        <a href="//github.com/mivinci/hugo-theme-minima">hugo-theme-minima</a>
-        - A clean and minimal Hugo theme ✒️
-      </li>
-      <li>
-        <a href="//github.com/mivinci/cqupt">cqupt</a>
-        - CQUPT 校园网登录脚本 📶
-      </li>
-    </ul>
-  </div>
-  <div>
-    <h2>Blogs</h2>
-    <p>Archived.</p>
+  <div id="app">
+    <aside>
+      <img src="https://avatars.githubusercontent.com/u/33592375?v=4" alt="avatar" />
+    </aside>
+    <main>
+      <header>
+        <div>
+          <h1>Leo X.</h1>
+          <p>
+            👋 Hi, there! I'm Leonard, you may know me as 叉 JJ or 小丽. 
+            I'm a full-stack software developer best specilized in language runtimes.
+            C89 is my favorite C standard. Besides coding, I like to study theoretical 
+            physics. Minecraft is my favorite video game. And... Oh I sing a lot.
+            Live long and prosper 🖖.
+          </p>
+          <p class="contact">
+            <a href="mailto:mivinci@qq.com">E-mail</a>
+            <a href="//github.com/mivinci">GitHub</a>
+            <a href="//x.com/realmivnci">X</a>
+            <a href="//space.bilibili.com/223861386">B 站</a>
+            <a rel="me" href="https://mas.uniiem.com/@x">Mastodon</a>
+          </p>
+        </div>
+      </header>
+      <div>
+        <h2>Projects</h2>
+        <ul>
+          <li>
+            <a href="//github.com/ovojs/ovo">ovo</a>
+            - A JavaScript Runtime built on QuickJS 🦉
+            - <strong>WIP</strong>
+          </li>
+          <li>
+            <a href="//github.com/mivinci/pacman">pacman</a>
+            - An emoji Pac-Man game in your terminal emulator 😋
+          </li>
+          <li>
+            <a href="//github.com/mivinci/hugo-theme-minima">hugo-theme-minima</a>
+            - A clean and minimal Hugo theme ✒️
+          </li>
+          <li>
+            <a href="//github.com/mivinci/cqupt">cqupt</a>
+            - CQUPT 校园网登录脚本 📶
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h2>Blogs</h2>
+        Archived.
+      </div>
+    </main>
   </div>
 </body>
 
